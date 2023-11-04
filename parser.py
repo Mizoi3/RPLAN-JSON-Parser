@@ -1,9 +1,3 @@
-"""
-このコードはmatlab.doubleを解消済みのjsonファイルを、polygon sequenceとadjacency sequenceに変換します
-polygon seq = [polygon1, ...]
-adjacency seq = [[polygon ID 1, polygon ID 2, 0/1/2, door_x, door_y], ...]
-ここで0は連続接続、1はドアを介して接続、2は壁を介して接続を表す。
-"""
 import sys
 from shapely.geometry import Polygon, LineString
 import json
@@ -35,11 +29,11 @@ def main():
 
     # Prepare the output data
     output_data = {
-        "room_polygon_seq": room_boundaries,
-        "room_adjacency_seq": adjacency_result,
+        "polygons": room_boundaries,
+        "adjacency": adjacency_result,
         "types": room_types,
         "windows": windows,
-        "entrance_door": entrance_door
+        "entrance": entrance_door
     }
 
     # Write to the output JSON file
@@ -108,16 +102,6 @@ def determine_adjacency(room_boundaries, doors):
 
 
 def convert_doors_to_lines(doors):
-    """
-    doorsの配列を入力として、それに対応するLineオブジェクトのリストを返す関数。
-    
-    Parameters:
-    - doors: ドア情報のリスト。各ドアは[x, y, dx, dy, _]の形式。
-    
-    Returns:
-    - lines: Lineオブジェクトのリスト
-    """
-
     output_doors = []
     for idx, x, y, dx, dy, direction in doors:
         # Adjust the direction of the vector according to the dir value
