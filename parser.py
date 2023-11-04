@@ -6,40 +6,48 @@ import os
 # from tqdm import tqdm
 
 def main():
-    parser = argparse.ArgumentParser(description='Generate room adjacency sequence from a JSON file.')
-    parser.add_argument('--json', type=str, required=True, help='Path to the input JSON file.')
+    parser = argparse.ArgumentParser(description='Generate room adjacency sequence from JSON files.')
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--json', type=str, help='Path to the input JSON file.')
+    group.add_argument('--dir', type=str, help='Directory path to process all JSON files within it.')
     parser.add_argument('--output', type=str, required=True, help='Path to the output directory.')
 
     args = parser.parse_args()
 
-    # Read the JSON file
-    with open(args.json, 'r') as f:
-        data = json.load(f)
+    if args.json:
+        json_files = [args.json]
+    else:
+        json_files = [os.path.join(args.dir, file) for file in os.listdir(args.dir) if file.endswith('.json')]
 
-    room_boundaries = data['room_boundaries']
-    doors = data['doors']
-    room_types = data['types']
-    windows = data['windows']
-    boundary = data['boundary']
+    for json_file in json_files:
+        with open(json_file, 'r') as f:
+            data = json.load(f)
 
-    # Calculate adjacency
-    adjacency_result = determine_adjacency(room_boundaries, doors)
+        room_boundaries = data['room_boundaries']
+        doors = data['doors']
+        room_types = data['types']
+        windows = data['windows']
+        boundary = data['boundary']
 
-    entrance_door = calculate_entrance_room(boundary)
+        # Calculate adjacency
+        adjacency_result = determine_adjacency(room_boundaries, doors)
 
-    # Prepare the output data
-    output_data = {
-        "polygons": room_boundaries,
-        "adjacency": adjacency_result,
-        "types": room_types,
-        "windows": windows,
-        "entrance": entrance_door
-    }
+        entrance_door = calculate_entrance_room(boundary)
 
-    # Write to the output JSON file
-    output_file_path = f"{args.output}/{os.path.basename(args.json)}"
-    with open(output_file_path, 'w') as f:
-        json.dump(output_data, f)
+        # Prepare the output data
+        output_data = {
+            "polygons": room_boundaries,
+            "adjacency": adjacency_result,
+            "types": room_types,
+            "windows": windows,
+            "entrance": entrance_door
+        }
+
+        # Write to the output JSON file
+        output_file_name = os.path.basename(json_file)
+        output_file_path = os.path.join(args.output, output_file_name)
+        with open(output_file_path, 'w') as f:
+            json.dump(output_data, f)
 
 def is_overlapping(edge1, edge2):
     """Check if two edges overlap and are not just touching at a vertex."""
