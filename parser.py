@@ -118,32 +118,24 @@ def convert_doors_to_lines(doors):
     - lines: Lineオブジェクトのリスト
     """
 
-    lines = []
-    for door in doors:
-        _, x, y, dx, dy, _ = door
-
-        # 1. 短辺の長さを取得
-        short_len = 6
-
-        # 2. ドアの重心
-        if dx == 0:  # 縦長の場合
-            door_center_x, door_center_y = x, y + dy/2
-        elif dy == 0:  # 横長の場合
-            door_center_x, door_center_y = x + dx/2, y
-
-        # 4. ドアの重心を中心に、長さが短辺の長さで、長辺の中点を通る線分の始点と終点を計算
-        if dx == 0:  # 縦長の場合
-            start_x, end_x = door_center_x - short_len / 2, door_center_x + short_len / 2
-            start_y, end_y = door_center_y, door_center_y
-        elif dy == 0:  # 横長の場合
-            start_x, end_x = door_center_x, door_center_x
-            start_y, end_y = door_center_y - short_len / 2, door_center_y + short_len / 2
-
+    output_doors = []
+    for idx, x, y, dx, dy, direction in doors:
+        # Adjust the direction of the vector according to the dir value
+        if direction == 3:  # Right
+            dx, dy = dx, 0
+        elif direction == 0:  # Up
+            dx, dy = 0, dy
+        elif direction == 1:  # Left
+            dx, dy = -dx, 0
+        elif direction == 2:  # Down
+            dx, dy = 0, -dy
+        start_x, end_x = x, x + dx
+        start_y, end_y = y, y + dy
         # Lineオブジェクトの作成
-        line = LineString([(start_x, start_y), (end_x, end_y)])
-        lines.append(line)
+        door = LineString([(start_x, start_y), (end_x, end_y)])
+        output_doors.append(door)
 
-    return lines
+    return output_doors
 
 def calculate_entrance_room(boundary, target_flag=1, default_distance=6):
     output = []
