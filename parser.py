@@ -1,9 +1,13 @@
-import sys
-from shapely.geometry import Polygon, LineString
 import json
 import argparse
 import os
-# from tqdm import tqdm
+import sys
+sys.path.append("../")
+
+from shapely.geometry import Polygon, LineString
+
+# optional (if you need to change category dummy as string)
+# from config import category
 
 def main():
     parser = argparse.ArgumentParser(description='Generate room adjacency sequence from JSON files.')
@@ -24,21 +28,22 @@ def main():
             data = json.load(f)
 
         room_boundaries = data['room_boundaries']
-        doors = data['doors']
-        room_types = data['types']
+        doors = make_doors_easy(data['doors']) # remove direction
+        types = [category[type_] for type_ in data['types']]
         windows = data['windows']
         boundary = data['boundary']
 
         # Calculate adjacency
-        adjacency_result = determine_adjacency(room_boundaries, doors)
+        adjacency, doors = determine_adjacency(room_boundaries, doors)
 
         entrance_door = calculate_entrance_room(boundary)
 
         # Prepare the output data
         output_data = {
             "polygons": room_boundaries,
-            "adjacency": adjacency_result,
-            "types": room_types,
+            "adjacency": adjacency,
+            "types": types,
+            "doors": doors,
             "windows": windows,
             "entrance": entrance_door
         }
@@ -61,52 +66,49 @@ def is_overlapping(edge1, edge2):
 def determine_adjacency(room_boundaries, doors):
     """Determine the adjacency between room polygons."""
     adjacency = []
-    
+    door_data = []
+
     for i, poly1 in enumerate(room_boundaries):
         for j, poly2 in enumerate(room_boundaries):
             if i >= j:
-                continue  # 同じポリゴンまたはすでに比較したポリゴンとは比較しない
-            
+                continue
+
             polygon1 = Polygon(poly1)
             polygon2 = Polygon(poly2)
-            
-            connection_flag = 0  # 接続していない場合は0
-            
-            # 交差する辺があるか調べる
-            for idx1, line1 in enumerate(list(polygon1.exterior.coords[:-1])):
-                for idx2, line2 in enumerate(list(polygon2.exterior.coords[:-1])):
-                    line1_obj = LineString([line1, list(polygon1.exterior.coords)[idx1 + 1]])
-                    line2_obj = LineString([line2, list(polygon2.exterior.coords)[idx2 + 1]])
-                    
-                    if line1_obj.intersects(line2_obj) and not line1_obj.touches(line2_obj):
-                        connection_flag = 2  # 接続している場合は2
-                        break  # 一つでも交差する辺が見つかれば次のポリゴンへ
-                else:
-                    continue
-                break
-            
-            if connection_flag == 2:
-                adjacency.append([i, j, connection_flag, None, None, None, None])
 
-    door_lines = convert_doors_to_lines(doors)
+            connection_flag = 0
 
-    for door_line, door in zip(door_lines, doors):
-        _, x, y, dx, dy, _ = door
-        door_center_x = x + dx / 2
-        door_center_y = y + dy / 2
-        door_len_x = dx
-        door_len_y = dy
+            for idx1, point1 in enumerate(polygon1.exterior.coords[:-1]):
+                for idx2, point2 in enumerate(polygon2.exterior.coords[:-1]):
+                    line1 = LineString([point1, polygon1.exterior.coords[idx1 + 1]])
+                    line2 = LineString([point2, polygon2.exterior.coords[idx2 + 1]])
 
+                    if line1.intersects(line2) and not line1.touches(line2):
+                        connection_flag = 2
+                        break
+                if connection_flag:
+                    break
+
+            if connection_flag:
+                adjacency.append([i, j, connection_flag])
+
+    for door in doors:
+        x, y, dx, dy = door  # 更新されたフォーマットに基づいて変更
+        door_line = LineString([(x, y), (x + dx, y + dy)])
+        
         connected_rooms = []
         for i, poly in enumerate(room_boundaries):
-            polygon = Polygon(poly)
-            if door_line.intersects(polygon):
+            if door_line.intersects(Polygon(poly)):
                 connected_rooms.append(i)
 
         if len(connected_rooms) == 2:
-            adjacency.append([connected_rooms[0], connected_rooms[1], 1, door_center_x, door_center_y, door_len_x, door_len_y])
+            adjacency.append([connected_rooms[0], connected_rooms[1], 1])
+            door_center_x = x + dx / 2
+            door_center_y = y + dy / 2
+            door_data.append([door_center_x, door_center_y, abs(dx), abs(dy)])
 
-    return adjacency
+    return adjacency, door_data
+
 
 
 def convert_doors_to_lines(doors):
@@ -129,7 +131,24 @@ def convert_doors_to_lines(doors):
 
     return output_doors
 
-def calculate_entrance_room(boundary, target_flag=1, default_distance=6):
+def make_doors_easy(doors):
+    output_doors = []
+    for idx, x, y, dx, dy, direction in doors:
+        # Adjust the direction of the vector according to the dir value
+        if direction == 3:  # Right
+            dx, dy = dx, 0
+        elif direction == 0:  # Up
+            dx, dy = 0, dy
+        elif direction == 1:  # Left
+            dx, dy = -dx, 0
+        elif direction == 2:  # Down
+            dx, dy = 0, -dy
+        # Lineオブジェクトの作成
+        output_doors.append([x, y, dx, dy])
+
+    return output_doors
+
+def calculate_entrance_room(boundary):
     output = []
 
     for item in boundary:
@@ -141,4 +160,3 @@ def calculate_entrance_room(boundary, target_flag=1, default_distance=6):
 
 if __name__ == '__main__':
     main()
-
