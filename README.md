@@ -18,6 +18,7 @@ The output will be in JSON format, containing the following information:
 - `polygons`: A list of polygons representing room boundaries.
 - `adjacency`: A list representing the adjacency relationships between rooms, with connection flags.
 - `types`: Room types, if available in the input data.
+- `doors`: 6 elements `[idx, x, y, dx, dy, ?]`
 - `windows`: Window positions and sizes, if available in the input data.
 - `entrance`: The calculated position and size of the entrance door.
 
