@@ -6,8 +6,7 @@ sys.path.append("../")
 
 from shapely.geometry import Polygon, LineString
 
-# optional (if you need to change category dummy as string)
-# from config import category
+from config import category
 
 def main():
     parser = argparse.ArgumentParser(description='Generate room adjacency sequence from JSON files.')
@@ -28,7 +27,7 @@ def main():
             data = json.load(f)
 
         room_boundaries = data['room_boundaries']
-        doors = make_doors_easy(data['doors']) # remove direction
+        doors = data['doors'] # remove direction
         types = [category[type_] for type_ in data['types']]
         windows = data['windows']
         boundary = data['boundary']
@@ -86,6 +85,7 @@ def determine_adjacency(room_boundaries, doors):
                     if line1.intersects(line2) and not line1.touches(line2):
                         connection_flag = 2
                         break
+                    return adjacency, door_data
                 if connection_flag:
                     break
 
@@ -93,7 +93,7 @@ def determine_adjacency(room_boundaries, doors):
                 adjacency.append([i, j, connection_flag])
 
     for door in doors:
-        x, y, dx, dy = door  # 更新されたフォーマットに基づいて変更
+        _, x, y, dx, dy, _ = door  # 更新されたフォーマットに基づいて変更
         door_line = LineString([(x, y), (x + dx, y + dy)])
         
         connected_rooms = []
@@ -109,43 +109,13 @@ def determine_adjacency(room_boundaries, doors):
 
     return adjacency, door_data
 
-
-
 def convert_doors_to_lines(doors):
     output_doors = []
-    for idx, x, y, dx, dy, direction in doors:
-        # Adjust the direction of the vector according to the dir value
-        if direction == 3:  # Right
-            dx, dy = dx, 0
-        elif direction == 0:  # Up
-            dx, dy = 0, dy
-        elif direction == 1:  # Left
-            dx, dy = -dx, 0
-        elif direction == 2:  # Down
-            dx, dy = 0, -dy
+    for _, x, y, dx, dy, _ in doors:
         start_x, end_x = x, x + dx
         start_y, end_y = y, y + dy
-        # Lineオブジェクトの作成
         door = LineString([(start_x, start_y), (end_x, end_y)])
         output_doors.append(door)
-
-    return output_doors
-
-def make_doors_easy(doors):
-    output_doors = []
-    for idx, x, y, dx, dy, direction in doors:
-        # Adjust the direction of the vector according to the dir value
-        if direction == 3:  # Right
-            dx, dy = dx, 0
-        elif direction == 0:  # Up
-            dx, dy = 0, dy
-        elif direction == 1:  # Left
-            dx, dy = -dx, 0
-        elif direction == 2:  # Down
-            dx, dy = 0, -dy
-        # Lineオブジェクトの作成
-        output_doors.append([x, y, dx, dy])
-
     return output_doors
 
 def calculate_entrance_room(boundary):
